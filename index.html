@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rewind Explorer</title>
+<meta name="description" content="Pick any artist from your own Spotify extended streaming history and get their full listening breakdown -- entirely in your browser, nothing uploaded anywhere.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎧</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Personal listening report</div>
+    <h1>Rewind Explorer</h1>
+    <p class="lede">
+      Pick any artist you've streamed and get their full breakdown &#8212; plays over time,
+      most-played tracks, when you listen, and how their releases stack up. Runs entirely
+      in your browser: your listening history is <strong>never uploaded anywhere</strong>.
+    </p>
+  </header>
+
+  <section id="uploadSection" class="upload-card">
+    <div id="dropzone" class="dropzone">
+      <div class="dropzone-icon">&#127911;</div>
+      <div class="dropzone-title">Drop your Spotify data here</div>
+      <div class="dropzone-sub">The .zip Spotify emailed you, or the extracted "Spotify Extended Streaming History" folder</div>
+      <label class="browse-btn">
+        Choose files
+        <input type="file" id="fileInput" multiple accept=".zip,.json" hidden>
+      </label>
+      <div class="dropzone-status" id="uploadStatus"></div>
+      <div class="dropzone-bar-track" id="progressTrack" hidden><div class="dropzone-bar" id="progressBar"></div></div>
+    </div>
+
+    <details class="how-to">
+      <summary>How do I get my Spotify Extended Streaming History?</summary>
+      <ol>
+        <li>Go to <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noopener">spotify.com/account/privacy</a> while logged in.</li>
+        <li>Under "Download your data", request <strong>Extended streaming history</strong> (not the basic account data export -- that one doesn't include play-by-play history).</li>
+        <li>Spotify emails you a link within a few days. Download the .zip.</li>
+        <li>Drop that .zip right here, unopened -- no need to extract it first.</li>
+      </ol>
+      <p class="privacy-note">Everything above happens locally: files are read in memory by your browser and thrown away on refresh. This page has no server, no database, and no upload endpoint -- there is nothing for your data to be sent to.</p>
+    </details>
+  </section>
+
+  <div class="picker" id="picker" hidden>
+    <input class="picker-input" id="pickerInput" type="text" placeholder="Search an artist&hellip;" autocomplete="off" spellcheck="false">
+    <span class="picker-icon">&#9662;</span>
+    <div class="picker-list" id="pickerList"></div>
+  </div>
+  <div class="picker-status" id="pickerStatus" hidden></div>
+
+  <div id="dashboard" hidden>
+
+    <div class="dashboard-head">
+      <h2 class="artist-title" id="artistTitle"></h2>
+      <button class="save-btn" id="savePngBtn">
+        <span class="save-btn-icon">&#8681;</span><span id="savePngLabel">Save as PNG</span>
+      </button>
+    </div>
+
+    <div class="range-chip"><span class="dot"></span><span id="rangeChip"></span></div>
+
+    <section class="kpis">
+      <div class="kpi">
+        <div class="label">Minutes streamed</div>
+        <div class="value" id="kpi1Value"></div>
+        <div class="sub" id="kpi1Sub"></div>
+      </div>
+      <div class="kpi">
+        <div class="label">Total plays</div>
+        <div class="value" id="kpi2Value"></div>
+        <div class="sub" id="kpi2Sub"></div>
+      </div>
+      <div class="kpi">
+        <div class="label">Tracks in rotation</div>
+        <div class="value" id="kpi3Value"></div>
+        <div class="sub" id="kpi3Sub"></div>
+      </div>
+      <div class="kpi">
+        <div class="label">First listened</div>
+        <div class="value truncate" id="kpi4Value" title=""></div>
+        <div class="sub" id="kpi4Sub"></div>
+      </div>
+      <div class="kpi">
+        <div class="label">Most played</div>
+        <div class="value truncate" id="kpi5Value" title=""></div>
+        <div class="sub" id="kpi5Sub"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Listening over time</h2>
+        <span class="note" id="monthlyNote"></span>
+      </div>
+      <div id="lineChartHost"></div>
+      <div class="band-legend" id="bandLegend"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>By year</h2>
+        <span class="note">total plays per calendar year</span>
+      </div>
+      <div class="year-chart" id="yearChartHost"></div>
+    </section>
+
+    <section class="card" id="eraSection" hidden>
+      <div class="card-head">
+        <h2>By era</h2>
+        <span class="note">original + reissues + deluxe cuts, combined</span>
+      </div>
+      <div class="bars" id="erasHost"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Most played</h2>
+        <span class="note">by number of plays</span>
+      </div>
+      <div class="bars" id="barsHost"></div>
+    </section>
+
+    <section class="card" id="trendSection" hidden>
+      <div class="card-head">
+        <h2>Rising &amp; cooling</h2>
+        <span class="note">early half of your history vs. the recent half</span>
+      </div>
+      <div class="trend-grid">
+        <div class="trend-col"><h3>Rising tracks</h3><div id="risingTracksHost"></div></div>
+        <div class="trend-col"><h3>Cooling tracks</h3><div id="coolingTracksHost"></div></div>
+        <div class="trend-col"><h3>Rising releases</h3><div id="risingAlbumsHost"></div></div>
+        <div class="trend-col"><h3>Cooling releases</h3><div id="coolingAlbumsHost"></div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Shuffle vs. on repeat</h2>
+      </div>
+      <div class="shuffle-bar">
+        <div class="shuffle-seg repeat" id="repeatSeg"></div>
+        <div class="shuffle-seg shuffle" id="shuffleSeg"></div>
+      </div>
+      <div class="shuffle-caption" id="shuffleCaption"></div>
+    </section>
+
+    <div class="row-2">
+      <section class="card">
+        <div class="card-head"><h2>By day of week</h2></div>
+        <div class="mini-chart" id="dowHost"></div>
+      </section>
+      <section class="card">
+        <div class="card-head"><h2>By part of day</h2></div>
+        <div class="mini-chart" id="daypartHost"></div>
+        <div class="note" style="margin-top:10px;">based on UTC timestamps &#8212; shift by your local offset for wall-clock time</div>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>By release</h2>
+        <span class="note">sorted by minutes played</span>
+      </div>
+      <div class="table-scroll">
+        <table id="albumTable">
+          <thead><tr><th>Release</th><th class="num">Plays</th><th class="num">Minutes</th><th class="spark-cell"></th></tr></thead>
+          <tbody id="albumBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      <span id="footerSource"></span>
+      <span id="footerFact"></span>
+    </footer>
+
+  </div>
+
+  <footer class="site-footer">
+    <a href="https://github.com/" id="repoLink" target="_blank" rel="noopener">View source on GitHub</a>
+    <span>Nothing you upload ever leaves this tab.</span>
+  </footer>
+
+</div>
+
+<div class="tip" id="tip"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="js/aggregate.js"></script>
+<script src="js/upload.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

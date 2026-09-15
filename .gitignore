@@ -1,0 +1,14 @@
+# local test data / personal exports -- never commit real listening history
+_testdata/
+*.zip
+Streaming_History_*.json
+all_artists_data.json
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Vercel
+.vercel/
