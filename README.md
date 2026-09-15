@@ -11,6 +11,20 @@ upload endpoint. The moment you drop your Spotify export in, the page reads
 it, crunches it, and throws it away on refresh. Nobody but you ever sees it
 -- including whoever's running this deployment.
 
+## Sample output
+
+<table>
+<tr><td><img src="docs/taylor-swift.png" width="280" alt="Taylor Swift dashboard, showing plays over time, by-era breakdown, and rising/cooling tracks"></td>
+<td><img src="docs/ed-sheeran.png" width="280" alt="Ed Sheeran dashboard, including his +, -, =, x album titles handled correctly"></td>
+<td><img src="docs/noah-kahan.png" width="280" alt="Noah Kahan dashboard, showing a 2026 breakout in the listening-over-time chart"></td></tr>
+</table>
+
+Three real dashboards, same page, three different data shapes: Taylor Swift
+(lots of "Taylor's Version" reissues, folded into one era each), Ed Sheeran
+(whose actual album titles are math symbols -- `+`, `-`, `=`, `x` -- and yes,
+that's really how they're released), and Noah Kahan (a much smaller library
+with a visible 2026 breakout in the timeline).
+
 ## Using it
 
 1. Request your **Extended Streaming History** from Spotify: go to
@@ -27,8 +41,8 @@ it, crunches it, and throws it away on refresh. Nobody but you ever sees it
 It's a static site -- no build step, no dependencies to install.
 
 ```bash
-git clone https://github.com/<your-username>/rewind-explorer.git
-cd rewind-explorer
+git clone https://github.com/Rubemat20/spotify-rewind-explorer.git
+cd spotify-rewind-explorer
 python -m http.server 8000   # or any static file server
 ```
 
@@ -59,6 +73,15 @@ it's plain HTML/CSS/JS. Vercel serves it as-is.
 No analytics, no cookies, no tracking pixels. The only network requests this
 page makes after it loads are to Google Fonts and the two CDN scripts
 (JSZip, html2canvas for the "Save as PNG" button) -- never your data.
+
+## Privacy & legal
+
+- [PRIVACY.md](PRIVACY.md) -- what happens to your data (short version: nothing, it never leaves your browser)
+- [TERMS.md](TERMS.md) -- terms of use, accuracy disclaimer, no-warranty
+- Not affiliated with, endorsed by, or sponsored by Spotify AB. "Spotify" and
+  its logos are trademarks of Spotify AB, referenced here only to describe
+  compatibility with Spotify's own data export format. This project does not
+  use the Spotify API and never asks for your Spotify login.
 
 ## License
 

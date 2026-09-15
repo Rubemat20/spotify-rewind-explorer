@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rewind Explorer</title>
 <meta name="description" content="Pick any artist from your own Spotify extended streaming history and get their full listening breakdown -- entirely in your browser, nothing uploaded anywhere.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎧</text></svg>">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -47,6 +47,15 @@
         <li>Drop that .zip right here, unopened -- no need to extract it first.</li>
       </ol>
       <p class="privacy-note">Everything above happens locally: files are read in memory by your browser and thrown away on refresh. This page has no server, no database, and no upload endpoint -- there is nothing for your data to be sent to.</p>
+    </details>
+
+    <details class="how-to">
+      <summary>Privacy &amp; terms</summary>
+      <p><strong>Privacy.</strong> This page has no backend. Your streaming history is read by your browser's File API (and, for a .zip, the JSZip library) and processed entirely in memory on your device. Nothing is uploaded, logged, stored, or sent to any server -- there is no database and no upload endpoint for it to go to. Refreshing or closing the tab discards it. The only network requests this page makes are to Google Fonts and two CDN-hosted scripts (JSZip, html2canvas) -- never your data. No analytics, no cookies, no tracking.</p>
+      <p><strong>Not affiliated with Spotify.</strong> This is an independent, unofficial, fan-made tool. It is not affiliated with, endorsed by, or sponsored by Spotify AB. "Spotify" and its logos are trademarks of Spotify AB, referenced here only to describe compatibility with the data export Spotify's own "Download your data" feature produces.</p>
+      <p><strong>Your data, your responsibility.</strong> You're uploading a file you requested from your own Spotify account. How you obtain and use that export remains governed by Spotify's own Terms of Service and Privacy Policy -- this tool doesn't call Spotify's API and doesn't change your relationship with Spotify in any way.</p>
+      <p><strong>Accuracy.</strong> Every number here (play counts, minutes, "top track," etc.) is this tool's own best-effort analysis of your export -- including judgment calls like folding a single's plays into its parent album, or grouping "Album (Deluxe)" with "Album." It won't always match Spotify's own official Wrapped numbers, which use different, undocumented methodology.</p>
+      <p><strong>No warranty.</strong> Provided "as is," source available under the <a href="https://github.com/Rubemat20/spotify-rewind-explorer/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a> -- no warranty of any kind, use at your own risk.</p>
     </details>
   </section>
 
@@ -186,7 +195,13 @@
   </div>
 
   <footer class="site-footer">
-    <a href="https://github.com/" id="repoLink" target="_blank" rel="noopener">View source on GitHub</a>
+    <span>
+      <a href="https://github.com/Rubemat20/spotify-rewind-explorer" target="_blank" rel="noopener">View source on GitHub</a>
+      &middot; Not affiliated with Spotify AB &middot;
+      <a href="PRIVACY.md" target="_blank" rel="noopener">Privacy</a>
+      &middot;
+      <a href="TERMS.md" target="_blank" rel="noopener">Terms</a>
+    </span>
     <span>Nothing you upload ever leaves this tab.</span>
   </footer>
 
