@@ -56,6 +56,24 @@ Don't use this project, or a fork of it, to:
 - Violate Spotify's own Terms of Service in how you obtain the underlying
   export.
 
+## Intellectual property
+
+The source code in this repository is licensed under the [MIT
+License](LICENSE) -- you may use, copy, modify, and redistribute it under
+those terms, including forking and renaming it. Site content such as this
+file, [PRIVACY.md](PRIVACY.md), and the README is provided under the same
+license. "Spotify" and its logos remain trademarks of Spotify AB and are
+not licensed by this project (see "Not affiliated with Spotify" above).
+
+## Governing law
+
+These terms are governed by the laws of **[state/country -- fill in]**,
+without regard to conflict-of-laws principles. If you have a dispute about
+this project, open a [GitHub
+issue](https://github.com/Rubemat20/spotify-rewind-explorer/issues) first;
+any legal proceeding that isn't resolved that way must be brought in a
+court of competent jurisdiction in that location.
+
 ## Changes
 
 These terms may be updated as the project changes. Check this file's

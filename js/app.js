@@ -121,13 +121,15 @@ function renderPickerList(query) {
   }
   currentMatches = matches;
   activeIdx = -1;
+  pickerInput.setAttribute('aria-expanded', 'true');
+  pickerInput.removeAttribute('aria-activedescendant');
   if (!matches.length) {
     pickerList.innerHTML = '<div class="picker-empty">No artist matches "' + esc(query) + '"</div>';
     pickerList.classList.add('open');
     return;
   }
   pickerList.innerHTML = matches.map((a, i) => (
-    '<div class="picker-item" data-i="' + i + '">' +
+    '<div class="picker-item" id="picker-item-' + i + '" role="option" aria-selected="false" data-i="' + i + '">' +
       '<span class="pi-name">' + esc(a.name) + '</span>' +
       '<span class="pi-meta">' + a.plays.toLocaleString() + ' plays</span>' +
     '</div>'
@@ -158,23 +160,35 @@ pickerInput.addEventListener('keydown', (e) => {
     e.preventDefault();
     if (activeIdx >= 0 && currentMatches[activeIdx]) selectArtist(currentMatches[activeIdx].name);
   } else if (e.key === 'Escape') {
-    pickerList.classList.remove('open');
+    closePickerList();
   }
 });
 document.addEventListener('click', (e) => {
   if (!document.getElementById('picker').contains(e.target)) {
-    pickerList.classList.remove('open');
+    closePickerList();
   }
 });
+function closePickerList() {
+  pickerList.classList.remove('open');
+  pickerInput.setAttribute('aria-expanded', 'false');
+  pickerInput.removeAttribute('aria-activedescendant');
+}
 function updateActive() {
   [...pickerList.querySelectorAll('.picker-item')].forEach((el, i) => {
-    el.classList.toggle('active', i === activeIdx);
+    const isActive = i === activeIdx;
+    el.classList.toggle('active', isActive);
+    el.setAttribute('aria-selected', String(isActive));
   });
+  if (activeIdx >= 0 && currentMatches[activeIdx]) {
+    pickerInput.setAttribute('aria-activedescendant', 'picker-item-' + activeIdx);
+  } else {
+    pickerInput.removeAttribute('aria-activedescendant');
+  }
 }
 
 function selectArtist(name) {
   pickerInput.value = name;
-  pickerList.classList.remove('open');
+  closePickerList();
   renderArtist(name);
 }
 
