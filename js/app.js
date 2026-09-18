@@ -1,6 +1,11 @@
+// Light/dark variant per artist slot. A few original hues (index 0 light,
+// 1 dark, 4 dark, 7 light) were nudged just enough that whichever of
+// white/near-black text pickOnAccent() below chooses still clears WCAG
+// 4.5:1 when painted directly on the color (the shuffle-bar "on repeat"
+// badge) -- the rest were already fine and are untouched.
 const PALETTE = [
-  ['#2a78d6', '#3987e5'], ['#eb6834', '#d95926'], ['#1baf7a', '#199e70'], ['#eda100', '#c98500'],
-  ['#e87ba4', '#d55181'], ['#008300', '#008300'], ['#4a3aa7', '#9085e9'], ['#e34948', '#e66767'],
+  ['#1f6ec2', '#3987e5'], ['#eb6834', '#dc6536'], ['#1baf7a', '#199e70'], ['#eda100', '#c98500'],
+  ['#e87ba4', '#d85f8b'], ['#008300', '#008300'], ['#4a3aa7', '#9085e9'], ['#e65a59', '#e66767'],
 ];
 
 function hashName(name) {
@@ -9,6 +14,26 @@ function hashName(name) {
     h = (h * 31 + name.charCodeAt(i)) >>> 0;
   }
   return h;
+}
+
+function relLuminance(hex) {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.slice(0, 2), 16) / 255;
+  const g = parseInt(c.slice(2, 4), 16) / 255;
+  const b = parseInt(c.slice(4, 6), 16) / 255;
+  const lin = (v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+function contrastRatio(hexA, hexB) {
+  const a = relLuminance(hexA), b = relLuminance(hexB);
+  const [hi, lo] = a > b ? [a, b] : [b, a];
+  return (hi + 0.05) / (lo + 0.05);
+}
+// Text painted directly on an artist's accent color (the shuffle-bar "on
+// repeat" segment) needs whichever of white/near-black clears 4.5:1 --
+// a single fixed color fails against several PALETTE hues.
+function pickOnAccent(bgHex) {
+  return contrastRatio(bgHex, '#ffffff') >= contrastRatio(bgHex, '#211f19') ? '#ffffff' : '#211f19';
 }
 
 function accentForArtist(name) {
@@ -240,8 +265,10 @@ function applyArtistColors(name, data) {
   const accentIdx = hashName(name) % PALETTE.length;
   const useDark = isDarkMode();
   const root = document.documentElement.style;
-  root.setProperty('--accent', useDark ? accentDark : accentLight);
-  root.setProperty('--accent-soft', (useDark ? accentDark : accentLight) + '20');
+  const accent = useDark ? accentDark : accentLight;
+  root.setProperty('--accent', accent);
+  root.setProperty('--accent-soft', accent + '20');
+  root.setProperty('--on-accent', pickOnAccent(accent));
 
   const relPalette = releasePaletteFor(accentIdx, 6);
   const releases = data.releases_for_band || [];

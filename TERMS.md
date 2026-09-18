@@ -67,7 +67,7 @@ not licensed by this project (see "Not affiliated with Spotify" above).
 
 ## Governing law
 
-These terms are governed by the laws of **[state/country -- fill in]**,
+These terms are governed by the laws of the **State of Louisiana, USA**,
 without regard to conflict-of-laws principles. If you have a dispute about
 this project, open a [GitHub
 issue](https://github.com/Rubemat20/spotify-rewind-explorer/issues) first;
