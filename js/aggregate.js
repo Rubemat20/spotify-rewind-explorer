@@ -1,7 +1,7 @@
 // Port of the Python aggregation pipeline (aggregate_all_artists.py) to JavaScript.
-// Runs entirely client-side: takes raw Spotify Extended Streaming History
-// records and produces the exact same {index, artists} shape the dashboard
-// rendering code (app.js) consumes.
+// Runs entirely client-side: takes Spotify streaming history records (extended
+// or basic, normalized by upload.js) and produces the exact same
+// {index, artists} shape the dashboard rendering code (app.js) consumes.
 //
 // All date math uses the UTC getters (getUTCFullYear, getUTCDay, ...) because
 // the source timestamps are ISO 8601 with a trailing "Z" (UTC) and the
@@ -88,7 +88,10 @@ function friendlyMonth(date) {
   return `${names[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
 }
 
-function aggregateArtist(records) {
+// extended: false for the basic account-data export, which has no album,
+// skip, shuffle or platform fields. Those stats are then left out (empty
+// series, has_* flags false) instead of being derived from placeholders.
+function aggregateArtist(records, extended) {
   for (const r of records) {
     r._dt = new Date(r.ts);
     r._track = r.master_metadata_track_name;
@@ -155,6 +158,7 @@ function aggregateArtist(records) {
     const key = monthKey(r._dt);
     monthlyPlays.set(key, (monthlyPlays.get(key) || 0) + 1);
     monthlyMinutes.set(key, (monthlyMinutes.get(key) || 0) + r.ms_played / 60000);
+    if (!extended) continue;
     const era = eraName(r._album);
     if (!monthlyReleaseCounts.has(key)) monthlyReleaseCounts.set(key, new Map());
     const mrc = monthlyReleaseCounts.get(key);
@@ -209,13 +213,13 @@ function aggregateArtist(records) {
     track: t,
     plays: c,
     minutes: round1(trackMinutes.get(t)),
-    album: canonicalAlbumForTrack.get(t),
-    release: eraName(canonicalAlbumForTrack.get(t)),
+    album: extended ? canonicalAlbumForTrack.get(t) : '',
+    release: extended ? eraName(canonicalAlbumForTrack.get(t)) : '',
   }));
 
   const albumMinutes = new Map();
   const albumPlays = new Map();
-  for (const r of records) {
+  for (const r of extended ? records : []) {
     albumMinutes.set(r._album, (albumMinutes.get(r._album) || 0) + r.ms_played / 60000);
     albumPlays.set(r._album, (albumPlays.get(r._album) || 0) + 1);
   }
@@ -287,10 +291,10 @@ function aggregateArtist(records) {
   for (const r of records) {
     if (r._dt < mid) {
       trackFirst.set(r._track, (trackFirst.get(r._track) || 0) + 1);
-      albumFirst.set(r._album, (albumFirst.get(r._album) || 0) + 1);
+      if (extended) albumFirst.set(r._album, (albumFirst.get(r._album) || 0) + 1);
     } else {
       trackSecond.set(r._track, (trackSecond.get(r._track) || 0) + 1);
-      albumSecond.set(r._album, (albumSecond.get(r._album) || 0) + 1);
+      if (extended) albumSecond.set(r._album, (albumSecond.get(r._album) || 0) + 1);
     }
   }
   const trackMinTotal = Math.max(6, Math.round(records.length * 0.006));
@@ -334,6 +338,10 @@ function aggregateArtist(records) {
 
   let skips = 0;
   for (const r of records) if (r.skipped) skips += 1;
+  // Spotify only counts a stream once it passes 30 seconds; the basic export
+  // has no skip flag, so this is the closest stand-in it supports.
+  let over30s = 0;
+  for (const r of records) if (r.ms_played >= 30000) over30s += 1;
 
   const summary = {
     total_plays: totalPlays,
@@ -346,6 +354,7 @@ function aggregateArtist(records) {
     skips,
     skip_rate: round1((skips / totalPlays) * 100),
     played_through_rate: round1(100 - (skips / totalPlays) * 100),
+    over_30s_rate: round1((over30s / totalPlays) * 100),
     top_track: topTracks[0].track,
     top_track_plays: topTracks[0].plays,
     first_track: firstRec._track,
@@ -357,6 +366,8 @@ function aggregateArtist(records) {
     top_platform_count: topPlatformCount,
     has_era_grouping: hasEraGrouping,
     has_trend_data: hasTrendData,
+    // false for the basic export: no album, skip, shuffle or platform data
+    extended,
   };
 
   return {
@@ -377,9 +388,10 @@ function aggregateArtist(records) {
   };
 }
 
-// records: flat array of raw Spotify streaming history objects.
+// records: flat array of slimmed streaming history objects (see upload.js).
 // onProgress(phase, done, total): optional progress callback.
 function aggregateAllArtists(records, onProgress) {
+  const extended = records.some((r) => r.extended);
   const recordsByArtist = new Map();
   for (const r of records) {
     const a = r.master_metadata_album_artist_name;
@@ -396,7 +408,7 @@ function aggregateAllArtists(records, onProgress) {
     done += 1;
     if (onProgress && done % 100 === 0) onProgress('aggregating', done, total);
     if (recs.length < MIN_PLAYS) continue;
-    const agg = aggregateArtist(recs);
+    const agg = aggregateArtist(recs, extended);
     artists[artist] = agg;
     index.push({ name: artist, plays: agg.summary.total_plays, minutes: agg.summary.total_minutes });
   }

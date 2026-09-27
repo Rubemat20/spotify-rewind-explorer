@@ -29,7 +29,7 @@
     <div id="dropzone" class="dropzone">
       <div class="dropzone-icon" aria-hidden="true">&#127911;</div>
       <div class="dropzone-title">Drop your Spotify data here</div>
-      <div class="dropzone-sub">The .zip Spotify emailed you, or the extracted "Spotify Extended Streaming History" folder</div>
+      <div class="dropzone-sub">The .zip Spotify emailed you, or the extracted "Spotify Extended Streaming History" (or "Spotify Account Data") folder</div>
       <label class="browse-btn">
         Choose files
         <input type="file" id="fileInput" multiple accept=".zip,.json" hidden>
@@ -42,7 +42,7 @@
       <summary>How do I get my Spotify Extended Streaming History?</summary>
       <ol>
         <li>Go to <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noopener">spotify.com/account/privacy</a> while logged in.</li>
-        <li>Under "Download your data", request <strong>Extended streaming history</strong> (not the basic account data export -- that one doesn't include play-by-play history).</li>
+        <li>Under "Download your data", request <strong>Extended streaming history</strong>. The basic <strong>Account data</strong> export works too, but it only covers the last year and has no album, shuffle, skip or device info, so those sections are left out.</li>
         <li>Spotify emails you a link within a few days. Download the .zip.</li>
         <li>Drop that .zip right here, unopened -- no need to extract it first.</li>
       </ol>
@@ -147,12 +147,12 @@
       <div class="trend-grid">
         <div class="trend-col"><h3>Rising tracks</h3><div id="risingTracksHost"></div></div>
         <div class="trend-col"><h3>Cooling tracks</h3><div id="coolingTracksHost"></div></div>
-        <div class="trend-col"><h3>Rising releases</h3><div id="risingAlbumsHost"></div></div>
-        <div class="trend-col"><h3>Cooling releases</h3><div id="coolingAlbumsHost"></div></div>
+        <div class="trend-col release-only"><h3>Rising releases</h3><div id="risingAlbumsHost"></div></div>
+        <div class="trend-col release-only"><h3>Cooling releases</h3><div id="coolingAlbumsHost"></div></div>
       </div>
     </section>
 
-    <section class="card">
+    <section class="card" id="shuffleSection">
       <div class="card-head">
         <h2>Shuffle vs. on repeat</h2>
       </div>
@@ -175,7 +175,7 @@
       </section>
     </div>
 
-    <section class="card">
+    <section class="card" id="albumSection">
       <div class="card-head">
         <h2>By release</h2>
         <span class="note">sorted by minutes played</span>
