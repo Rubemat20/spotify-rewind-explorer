@@ -6,8 +6,9 @@ that happens.
 
 ## What this page does with your file
 
-When you drop your Spotify Extended Streaming History (a `.zip` or a folder
-of `.json` files) onto this page:
+When you drop your Spotify streaming history (the extended export or the
+basic account-data export, as a `.zip` or a folder of `.json` files) onto
+this page:
 
 1. Your browser's built-in File API reads the file(s) into memory.
 2. If it's a `.zip`, [JSZip](https://stuk.github.io/jszip/) (loaded from a

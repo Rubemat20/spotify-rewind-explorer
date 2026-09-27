@@ -105,7 +105,7 @@ async function handleFiles(fileList) {
   progressTrack.hidden = false;
   setStatus('Reading files…');
   try {
-    const { records, fileCount } = await collectRecordsFromFiles(fileList, (msg) => setStatus(msg));
+    const { records, fileCount, extended } = await collectRecordsFromFiles(fileList, (msg) => setStatus(msg));
     setStatus(`Crunching ${records.length.toLocaleString()} plays from ${fileCount} file${fileCount === 1 ? '' : 's'}…`);
     // Yield one frame so the status text actually paints before the
     // (synchronous, occasionally chunky) aggregation pass runs.
@@ -121,7 +121,8 @@ async function handleFiles(fileList) {
     uploadSection.hidden = true;
     picker.hidden = false;
     pickerStatusEl.hidden = false;
-    pickerStatusEl.textContent = `${ALL_DATA.index.length.toLocaleString()} artists found (3+ plays) · ${records.length.toLocaleString()} total plays`;
+    pickerStatusEl.textContent = `${ALL_DATA.index.length.toLocaleString()} artists found (3+ plays) · ${records.length.toLocaleString()} total plays` +
+      (extended ? '' : ' · basic streaming history, so album, shuffle and skip stats are left out');
     selectArtist(ALL_DATA.index[0].name);
   } catch (err) {
     progressTrack.hidden = true;
@@ -169,8 +170,18 @@ function renderPickerList(query) {
   });
 }
 
+// Reopening the picker with the selected artist's name still in the box
+// should show the full list, not a one-row "match" for that name. Anything
+// the user has typed since (so the value no longer equals it) filters as usual.
+function openPickerList() {
+  renderPickerList(pickerInput.value === CURRENT_NAME ? '' : pickerInput.value);
+}
+
 pickerInput.addEventListener('input', () => renderPickerList(pickerInput.value));
-pickerInput.addEventListener('focus', () => renderPickerList(pickerInput.value));
+pickerInput.addEventListener('focus', openPickerList);
+pickerInput.addEventListener('click', () => {
+  if (!pickerList.classList.contains('open')) openPickerList();
+});
 pickerInput.addEventListener('keydown', (e) => {
   if (!pickerList.classList.contains('open')) return;
   if (e.key === 'ArrowDown') {
@@ -306,9 +317,11 @@ function renderArtist(name) {
   document.getElementById('kpi1Value').textContent = minutesInt.toLocaleString();
   document.getElementById('kpi1Sub').textContent = '~' + hours.toLocaleString() + ' hours, total';
   document.getElementById('kpi2Value').textContent = s.total_plays.toLocaleString();
-  document.getElementById('kpi2Sub').textContent = s.played_through_rate + '% played through';
+  document.getElementById('kpi2Sub').textContent = s.extended
+    ? s.played_through_rate + '% played through'
+    : s.over_30s_rate + '% past 30 seconds';
   document.getElementById('kpi3Value').textContent = s.unique_tracks.toLocaleString();
-  document.getElementById('kpi3Sub').textContent = 'across ' + s.unique_albums + ' releases';
+  document.getElementById('kpi3Sub').textContent = s.extended ? 'across ' + s.unique_albums + ' releases' : 'different songs';
   const kpi4 = document.getElementById('kpi4Value');
   kpi4.textContent = s.first_listen_month;
   kpi4.title = s.first_track;
@@ -333,6 +346,9 @@ function renderArtist(name) {
 
   document.getElementById('eraSection').hidden = !s.has_era_grouping;
   document.getElementById('trendSection').hidden = !s.has_trend_data;
+  document.querySelectorAll('.release-only').forEach((el) => { el.hidden = !s.extended; });
+  document.getElementById('shuffleSection').hidden = !s.extended;
+  document.getElementById('albumSection').hidden = !s.extended;
 
   const repeatPct = Math.round((100 - s.shuffle_pct) * 10) / 10;
   const shufflePct = s.shuffle_pct;
@@ -347,11 +363,11 @@ function renderArtist(name) {
     : 'Only ' + shufflePct + '% of your ' + name + ' streams were on shuffle — you mostly know exactly which song you want.';
 
   document.getElementById('footerSource').textContent =
-    'Source: your Spotify Extended Streaming History · filtered to ' + name + ' · generated ' +
+    'Source: your Spotify ' + (s.extended ? 'Extended ' : '') + 'Streaming History · filtered to ' + name + ' · generated ' +
     new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   document.getElementById('footerFact').textContent =
-    'Biggest single day: ' + s.peak_day + ' with ' + s.peak_day_count + ' plays. Most often on ' + s.top_platform +
-    ' (' + s.top_platform_count + ' plays).';
+    'Biggest single day: ' + s.peak_day + ' with ' + s.peak_day_count + ' plays.' +
+    (s.extended ? ' Most often on ' + s.top_platform + ' (' + s.top_platform_count + ' plays).' : '');
 
   renderLineChart(data);
   renderYearChart(data);
@@ -360,7 +376,7 @@ function renderArtist(name) {
   if (s.has_trend_data) renderTrends(data);
   renderMini('dowHost', data.dow, 'day', 'plays');
   renderMini('daypartHost', data.daypart, 'part', 'plays');
-  renderAlbums(data);
+  if (s.extended) renderAlbums(data);
 
   document.getElementById('dashboard').hidden = false;
 }
@@ -421,7 +437,7 @@ function renderLineChart(data) {
     svg += `<circle class="hover-dot" data-i="${i}" cx="${x(i)}" cy="${y(d.plays)}" r="4" />`;
   });
   svg += `<line class="crosshair" id="crosshair" y1="${padT}" y2="${padT + plotH}" x1="0" x2="0" />`;
-  arr.forEach((d, i) => {
+  if (data.summary.extended) arr.forEach((d, i) => {
     const segX = Math.max(padL, x(i) - sliceW / 2) + 1;
     const segW = Math.max(sliceW - 2, 1);
     const color = d.dominant_release ? releaseColor(d.dominant_release) : 'var(--line-strong)';

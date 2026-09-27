@@ -36,6 +36,12 @@ with a visible 2026 breakout in the timeline).
 3. Open this site, drop the `.zip` it sends you (no need to unzip it first),
    and search for any artist you've played at least 3 times.
 
+The basic **Account data** export (`StreamingHistory_music_*.json`) works
+too, if that's what you already have. It only covers the last year and has
+no album, skip, shuffle or device info, so the by-release, by-era, shuffle
+and "rising releases" sections are hidden and "played through" becomes
+"past 30 seconds.
+
 ## Running it yourself
 
 It's a static site -- no build step, no dependencies to install.
@@ -60,7 +66,9 @@ it's plain HTML/CSS/JS. Vercel serves it as-is.
 - `js/upload.js` reads whatever you drop -- a `.zip`, loose `.json` files, or
   a folder -- using [JSZip](https://stuk.github.io/jszip/) to unpack archives
   in-browser, and keeps only the `Streaming_History_Audio_*.json` entries
-  (video/podcast history is ignored).
+  (or `StreamingHistory_music_*.json` from the basic export; video/podcast
+  history is ignored). If you drop both exports, only the extended one is
+  used, since it already contains the basic one's year.
 - `js/aggregate.js` does the actual analysis: per-artist monthly trends, a
   "same song, every edition" merge that folds a single's plays into its
   parent album, era detection (folds "Album (Deluxe)" / "Album (Taylor's
