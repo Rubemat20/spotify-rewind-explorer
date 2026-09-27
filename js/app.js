@@ -170,8 +170,18 @@ function renderPickerList(query) {
   });
 }
 
+// Reopening the picker with the selected artist's name still in the box
+// should show the full list, not a one-row "match" for that name. Anything
+// the user has typed since (so the value no longer equals it) filters as usual.
+function openPickerList() {
+  renderPickerList(pickerInput.value === CURRENT_NAME ? '' : pickerInput.value);
+}
+
 pickerInput.addEventListener('input', () => renderPickerList(pickerInput.value));
-pickerInput.addEventListener('focus', () => renderPickerList(pickerInput.value));
+pickerInput.addEventListener('focus', openPickerList);
+pickerInput.addEventListener('click', () => {
+  if (!pickerList.classList.contains('open')) openPickerList();
+});
 pickerInput.addEventListener('keydown', (e) => {
   if (!pickerList.classList.contains('open')) return;
   if (e.key === 'ArrowDown') {
