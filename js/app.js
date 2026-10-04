@@ -798,7 +798,116 @@ function renderTopFive() {
       `<p>No plays of ${cfg.min_seconds}s or more fall inside the ${TF_WINDOW_LABEL[TF_WINDOW]} for ${year}.</p></section>`;
     return;
   }
-  body.innerHTML = tfKpis(w) + tfTopCard(w);
+  body.innerHTML = tfKpis(w) + tfTopCard(w) +
+    `<div class="row-2">${tfPersonalityCard(w)}${tfHighlightsCard(w)}</div>` +
+    tfClockCard(w) + tfDiscoveryCard(w);
+}
+
+// Hover tooltips for anything in the Top Five body carrying data-tip (HTML, pre-escaped).
+document.getElementById('tfBody').addEventListener('pointermove', (e) => {
+  const el = e.target.closest('[data-tip]');
+  if (el) showTip(e.clientX, e.clientY, el.dataset.tip);
+  else hideTip();
+});
+document.getElementById('tfBody').addEventListener('pointerleave', hideTip);
+
+function tfHour(h) {
+  const suffix = h < 12 ? 'am' : 'pm';
+  return (h % 12 === 0 ? 12 : h % 12) + suffix;
+}
+const TF_WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function tfPersonalityCard(w) {
+  const p = w.personality;
+  const m = p.metrics;
+  const traits = p.traits.length
+    ? `<div class="tf-traits">${p.traits.map((t) => `<span class="tf-trait" data-tip="${escAttr(esc(t.blurb))}">${esc(t.name)}</span>`).join('')}</div>`
+    : '';
+  const facts = [
+    ['Top 5 artists', tfPct(m.top5_artist_share) + ' of minutes'],
+    ['After 10pm', tfPct(m.night_share) + ' of minutes'],
+    ['Picked, not shuffled', tfPct(m.curated_share)],
+    ['Plays per song', m.plays_per_track.toFixed(1)],
+  ];
+  if (m.new_artist_share !== null) facts.splice(1, 0, ['From new artists', tfPct(m.new_artist_share) + ' of minutes']);
+  // Older exports don't record skips at all, so a 0% skip rate means "unknown".
+  if (m.skip_rate > 0) facts.push(['Skipped', tfPct(m.skip_rate) + ' of starts']);
+  return `<section class="card tf-persona">
+    <div class="card-head"><h2>Listening personality</h2></div>
+    <div class="tf-persona-name">${esc(p.name)}</div>
+    <p class="tf-persona-blurb">${esc(p.blurb)}</p>
+    ${traits}
+    <dl class="tf-facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
+    <div class="note">A rule-of-thumb read of your habits, not Spotify's own formula.</div>
+  </section>`;
+}
+
+function tfHighlightsCard(w) {
+  const d = w.top_day, o = w.obsession, s = w.streaks;
+  const item = (label, value, sub) =>
+    `<div class="tf-hl"><div class="label">${label}</div><div class="tf-hl-value">${value}</div><div class="tf-hl-sub">${sub}</div></div>`;
+  return `<section class="card">
+    <div class="card-head"><h2>Highlights</h2></div>
+    <div class="tf-hl-grid">
+      ${item('Biggest day', tfDate(d.date), `${tfNum(d.minutes)} min · top song <b>${esc(d.top_track.name)}</b>`)}
+      ${item('Most-replayed in a day', esc(o.name), `${o.plays}× on ${tfDate(o.date)} · ${esc(o.artist)}`)}
+      ${item('Longest streak', `${tfNum(s.listening.days)} day${s.listening.days === 1 ? '' : 's'}`, `listening every day, ${tfRange([s.listening.start, s.listening.end])}`)}
+      ${item('Artist streak', `${tfNum(s.artist.days)} day${s.artist.days === 1 ? '' : 's'}`, `${esc(s.artist.name)} every day, ${tfRange([s.artist.start, s.artist.end])}`)}
+    </div>
+  </section>`;
+}
+
+// Column chart in the existing mini-chart style; labels[i] may be '' to skip a label.
+function tfColumns(values, labels, tips, peakIdx, cls) {
+  const max = Math.max(...values, 1);
+  return `<div class="mini-chart ${cls || ''}">` + values.map((v, i) => {
+    const pct = Math.max((v / max) * 100, 2);
+    return `<div class="mini-col${i === peakIdx ? ' is-peak' : ''}" data-tip="${tips[i]}">` +
+      `<div class="mini-bar-track"><div class="mini-bar" style="height:${pct}%"></div></div>` +
+      `<div class="mini-label">${labels[i]}</div></div>`;
+  }).join('') + `</div>`;
+}
+
+function tfClockCard(w) {
+  const c = w.clock;
+  const hourLabels = c.hours.map((_, h) => (h % 3 === 0 ? tfHour(h).replace('m', '') : ''));
+  const hourTips = c.hours.map((v, h) => `<b>${tfNum(v)}</b> min · ${tfHour(h)}–${tfHour((h + 1) % 24)}`);
+  const dayTips = c.weekdays.map((v, i) => `<b>${tfNum(v)}</b> min · ${TF_WEEKDAYS[i]}s`);
+  return `<section class="card">
+    <div class="card-head">
+      <h2>When you listen</h2>
+      <span class="note">peak hour <b>${tfHour(c.peak_hour)}</b> · peak day <b>${TF_WEEKDAYS[c.peak_weekday]}</b> · ${esc(TF_DATA.config.time_zone)} time</span>
+    </div>
+    <div class="tf-clock">
+      <div><h3 class="tf-sub-h">By hour</h3>${tfColumns(c.hours, hourLabels, hourTips, c.peak_hour, 'tf-hours')}</div>
+      <div><h3 class="tf-sub-h">By day of week</h3>${tfColumns(c.weekdays, TF_WEEKDAYS.map((d) => d.slice(0, 3)), dayTips, c.peak_weekday)}</div>
+    </div>
+  </section>`;
+}
+
+function tfDiscoveryCard(w) {
+  const d = w.discovery;
+  if (!d.reliable) {
+    return `<section class="card">
+      <div class="card-head"><h2>New vs. returning artists</h2></div>
+      <p class="note">Your history only starts ${tfDate(TF_DATA.config.data_range[0])}, so there isn't a full year before ${TF_YEAR}
+      to tell a genuinely new artist from one you just hadn't played yet inside this export.</p>
+    </section>`;
+  }
+  const total = d.new_artists + d.returning_artists;
+  const newPct = total ? (d.new_artists / total) * 100 : 0;
+  return `<section class="card">
+    <div class="card-head">
+      <h2>New vs. returning artists</h2>
+      <span class="note">"new" = first ever play of theirs falls in this window</span>
+    </div>
+    <div class="shuffle-bar" data-tip="<b>${tfNum(d.new_artists)}</b> new · <b>${tfNum(d.returning_artists)}</b> returning">
+      <div class="shuffle-seg repeat" style="width:${newPct}%">${newPct >= 15 ? tfNum(d.new_artists) + ' new' : ''}</div>
+      <div class="shuffle-seg shuffle" style="width:${100 - newPct}%">${100 - newPct >= 15 ? tfNum(d.returning_artists) + ' returning' : ''}</div>
+    </div>
+    <div class="shuffle-caption">New artists took ${tfPct(d.new_minutes_share)} of your listening time; the rest went to artists you already knew.</div>
+    <div class="tf-new">${tfList('Top new discoveries', d.top_new, 'artists', 'minutes')}</div>
+  </section>`;
 }
 
 // Top-five list sections inside #tfBody (re-rendered with the body).
@@ -827,10 +936,15 @@ tfBodyEl.addEventListener('keydown', (e) => {
   tfBodyEl.querySelector(`button[data-metric="${TF_METRIC}"]`).focus();
 });
 
+// esc() leaves double quotes alone, which is fine for text but not inside attribute values.
+function escAttr(s) {
+  return esc(s).replace(/"/g, '&quot;');
+}
+
 // Artist name as a link into the deep-dive when that artist has one (3+ plays).
 function tfArtistName(name, cls) {
   if (ALL_DATA && ALL_DATA.artists[name]) {
-    return `<button class="tf-link ${cls}" data-artist="${esc(name)}" title="Open ${esc(name)} in the artist deep-dive">${esc(name)}</button>`;
+    return `<button class="tf-link ${cls}" data-artist="${escAttr(name)}" title="Open ${escAttr(name)} in the artist deep-dive">${esc(name)}</button>`;
   }
   return `<span class="${cls}">${esc(name)}</span>`;
 }
@@ -895,7 +1009,7 @@ function renderTfBanner(w, year) {
 
 function tfTile(label, value, sub, title) {
   return `<div class="kpi"><div class="label">${label}</div>` +
-    `<div class="value truncate"${title ? ` title="${esc(title)}"` : ''}>${value}</div><div class="sub">${sub}</div></div>`;
+    `<div class="value truncate"${title ? ` title="${escAttr(title)}"` : ''}>${value}</div><div class="sub">${sub}</div></div>`;
 }
 
 function tfKpis(w) {
