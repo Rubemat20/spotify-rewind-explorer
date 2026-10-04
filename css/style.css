@@ -435,6 +435,25 @@ td.num { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-
 .tf-banner p { margin: 0; }
 .tf-banner p + p { margin-top: 4px; }
 
+/* ---------- top five: lists ---------- */
+.tf-top-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 26px; }
+@media (max-width: 760px) { .tf-top-grid { grid-template-columns: 1fr; } }
+.tf-list h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; margin: 0 0 6px; }
+.tf-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.tf-row:last-of-type { border-bottom: none; }
+.tf-rank { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 19px; color: var(--muted); text-align: right; line-height: 1; }
+.tf-row.is-first .tf-rank { color: var(--peak); }
+.tf-main { min-width: 0; }
+.tf-name-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.tf-name { font-size: 13.5px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tf-sub { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tf-val { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; color: var(--ink-2); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tf-tie { flex: none; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-2); border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; line-height: 1.5; }
+.tf-link { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; max-width: 100%; }
+.tf-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+.tf-more { margin-top: 6px; }
+.tf-foot { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+
 .tf-empty { text-align: center; padding: 40px 24px; color: var(--ink-2); font-size: 14px; }
 .tf-empty h3 { font-family: "Fraunces", Georgia, serif; font-size: 20px; color: var(--ink); margin: 0 0 6px; }
 

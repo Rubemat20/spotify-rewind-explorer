@@ -798,7 +798,79 @@ function renderTopFive() {
       `<p>No plays of ${cfg.min_seconds}s or more fall inside the ${TF_WINDOW_LABEL[TF_WINDOW]} for ${year}.</p></section>`;
     return;
   }
-  body.innerHTML = tfKpis(w);
+  body.innerHTML = tfKpis(w) + tfTopCard(w);
+}
+
+// Top-five list sections inside #tfBody (re-rendered with the body).
+const tfBodyEl = document.getElementById('tfBody');
+tfBodyEl.addEventListener('click', (e) => {
+  const metricBtn = e.target.closest('button[data-metric]');
+  if (metricBtn && metricBtn.dataset.metric !== TF_METRIC) {
+    TF_METRIC = metricBtn.dataset.metric;
+    renderTopFive();
+    tfBodyEl.querySelector(`button[data-metric="${TF_METRIC}"]`).focus();
+    return;
+  }
+  const artistBtn = e.target.closest('button[data-artist]');
+  if (artistBtn && ALL_DATA.artists[artistBtn.dataset.artist]) {
+    showView('artist');
+    selectArtist(artistBtn.dataset.artist);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+});
+tfBodyEl.addEventListener('keydown', (e) => {
+  const group = e.target.closest('[data-metric-group]');
+  if (!group || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+  e.preventDefault();
+  TF_METRIC = TF_METRIC === 'minutes' ? 'plays' : 'minutes';
+  renderTopFive();
+  tfBodyEl.querySelector(`button[data-metric="${TF_METRIC}"]`).focus();
+});
+
+// Artist name as a link into the deep-dive when that artist has one (3+ plays).
+function tfArtistName(name, cls) {
+  if (ALL_DATA && ALL_DATA.artists[name]) {
+    return `<button class="tf-link ${cls}" data-artist="${esc(name)}" title="Open ${esc(name)} in the artist deep-dive">${esc(name)}</button>`;
+  }
+  return `<span class="${cls}">${esc(name)}</span>`;
+}
+
+function tfValue(item, metric) {
+  return metric === 'plays' ? `${tfNum(item.plays)} plays` : `${tfNum(Math.round(item.minutes))} min`;
+}
+
+function tfList(title, top, kind, metric) {
+  if (!top.items.length) return `<div class="tf-list"><h3>${title}</h3><div class="note">Nothing here yet</div></div>`;
+  const other = metric === 'plays' ? 'minutes' : 'plays';
+  const rows = top.items.map((it) => {
+    const name = kind === 'artists' ? tfArtistName(it.name, 'tf-name') : `<span class="tf-name">${esc(it.name)}</span>`;
+    const sub = kind === 'artists' ? '' : `<div class="tf-sub">${tfArtistName(it.artist, '')}</div>`;
+    return `<div class="tf-row${it.rank === 1 ? ' is-first' : ''}">` +
+      `<div class="tf-rank">${it.rank}</div>` +
+      `<div class="tf-main"><div class="tf-name-line">${name}${it.tied ? '<span class="tf-tie" title="Tied with another entry on ' + metric + '">tie</span>' : ''}</div>${sub}</div>` +
+      `<div class="tf-val" title="${tfValue(it, other)}">${tfValue(it, metric)}</div></div>`;
+  }).join('');
+  const more = top.more_tied ? `<div class="note tf-more">+ ${top.more_tied} more tied at #${top.items[top.items.length - 1].rank}</div>` : '';
+  return `<div class="tf-list"><h3>${title}</h3>${rows}${more}</div>`;
+}
+
+function tfTopCard(w) {
+  const m = TF_METRIC;
+  return `<section class="card">
+    <div class="card-head">
+      <h2>Your top five</h2>
+      <div class="seg small" role="radiogroup" aria-label="Rank by" data-metric-group>
+        <button role="radio" data-metric="minutes" aria-checked="${m === 'minutes'}" tabindex="${m === 'minutes' ? 0 : -1}">By minutes</button>
+        <button role="radio" data-metric="plays" aria-checked="${m === 'plays'}" tabindex="${m === 'plays' ? 0 : -1}">By plays</button>
+      </div>
+    </div>
+    <div class="tf-top-grid">
+      ${tfList('Artists', w.top.artists[m], 'artists', m)}
+      ${tfList('Songs', w.top.tracks[m], 'tracks', m)}
+      ${tfList('Albums', w.top.albums[m], 'albums', m)}
+    </div>
+    <div class="note tf-foot">Genres aren't part of Spotify's streaming-history export, so there's no top-genres list. Ties share a rank.</div>
+  </section>`;
 }
 
 function renderTfBanner(w, year) {
