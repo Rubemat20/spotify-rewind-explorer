@@ -21,6 +21,7 @@ function slimRecord(raw) {
     skipped: !!raw.skipped,
     shuffle: !!raw.shuffle,
     platform: raw.platform || '',
+    incognito_mode: !!raw.incognito_mode, // Private Session -- left out of the Wrapped window
   };
 }
 
