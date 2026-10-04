@@ -6,6 +6,14 @@ you listen, how shuffle vs. deliberate replays split, and how every edition
 of a release (original, deluxe, "Taylor's Version," whatever) stacks up
 against each other.
 
+Or switch to **Top Five by year** for a Wrapped-style recap of every year in
+your history: top five artists, songs and albums (by minutes or by plays),
+total minutes, your biggest day, streaks, when you listen, new vs. returning
+artists, a listening personality, and a year-over-year comparison. A toggle
+flips between the **Full Year** (Jan 1 -- Dec 31) and the **Wrapped window**
+(Jan 1 -- Nov 15, the stretch Spotify's Wrapped roughly covers) and shows what
+changed in the rankings between the two.
+
 **Everything runs in your browser.** There is no backend, no database, no
 upload endpoint. The moment you drop your Spotify export in, the page reads
 it, crunches it, and throws it away on refresh. Nobody but you ever sees it
@@ -67,8 +75,37 @@ it's plain HTML/CSS/JS. Vercel serves it as-is.
   Version)" / etc. into one umbrella when it's genuinely a reissue), rising
   vs. cooling tracks (comparing the first half of your history against the
   second), shuffle-vs-repeat, and more.
+- `js/topfive.js` builds the **Top Five by year** data in one pass -- every
+  year, both windows -- so the toggle is instant. It differs from the artist
+  view on purpose:
+  - **Local time.** Days, hours and weekdays use your browser's time zone
+    (the artist view buckets in UTC).
+  - **30-second rule.** Only plays of 30s or more count, which is how
+    Wrapped defines a stream, so play counts can run a little lower than
+    the artist view's.
+  - **Wrapped window.** Jan 1 through `WRAPPED_CUTOFF` (Nov 15 by default --
+    Spotify describes Wrapped as covering January through mid-November),
+    with Private Session plays left out the way Wrapped leaves them out.
+    Change the constant at the top of the file to move the cutoff.
+  - **Ties** share a rank (1, 2, 2, 4), and everyone tied for #5 is shown.
+  - **Partial years** are flagged: a year still in progress, an export that
+    ends early, or a history that starts mid-year. An incomplete year is
+    compared against the same dates of the year before.
+  - Genres and podcasts aren't covered: the export has no genre data, and
+    podcast plays are dropped at upload.
 - `js/app.js` renders it all as hand-built SVG/DOM charts (no charting
-  library) and wires up the artist search.
+  library) and wires up the artist search and the view tabs.
+
+## Tests
+
+The Top Five aggregation has tests built on Node's built-in test runner (no
+packages to install; Node 18+):
+
+```bash
+node --test
+```
+
+They use synthetic records only -- never commit a real streaming-history export.
 
 No analytics, no cookies, no tracking pixels. The only network requests this
 page makes after it loads are to Google Fonts and the two CDN scripts
