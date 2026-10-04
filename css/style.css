@@ -528,3 +528,6 @@ body.capturing .card, body.capturing .kpis, body.capturing .picker-input,
 body.capturing .range-chip, body.capturing .tip {
   box-shadow: none !important;
 }
+/* the Top Five image keeps the title, active window and stats, not the controls */
+body.capturing .tf-controls, body.capturing #tfSavePngBtn { display: none; }
+body.capturing .tf-range-row { margin-top: 0; }

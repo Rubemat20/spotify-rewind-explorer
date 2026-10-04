@@ -231,38 +231,43 @@ function selectArtist(name) {
 const savePngBtn = document.getElementById('savePngBtn');
 const savePngLabel = document.getElementById('savePngLabel');
 
-function resetSaveBtn(delay) {
+function resetSaveBtn(btn, label, delay) {
   setTimeout(() => {
-    savePngBtn.disabled = false;
-    savePngLabel.textContent = 'Save as PNG';
+    btn.disabled = false;
+    label.textContent = 'Save as PNG';
   }, delay);
 }
 
-savePngBtn.addEventListener('click', async () => {
-  if (!CURRENT_NAME || typeof html2canvas !== 'function') return;
-  savePngBtn.disabled = true;
-  savePngLabel.textContent = 'Rendering…';
+// Shared by the artist dashboard and the Top Five view.
+async function saveAsPng(btn, label, target, baseName) {
+  if (typeof html2canvas !== 'function') return;
+  btn.disabled = true;
+  label.textContent = 'Rendering…';
   document.body.classList.add('capturing');
   try {
-    const target = document.getElementById('dashboard');
     const bg = getComputedStyle(document.body).backgroundColor;
     const canvas = await html2canvas(target, { backgroundColor: bg, scale: 2, useCORS: true });
     document.body.classList.remove('capturing');
-    const safeName = CURRENT_NAME.replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'artist';
+    const safeName = baseName.replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'rewind';
     const a = document.createElement('a');
     a.href = canvas.toDataURL('image/png');
     a.download = safeName + '_rewind.png';
     document.body.appendChild(a);
     a.click();
     a.remove();
-    savePngLabel.textContent = 'Saved';
-    resetSaveBtn(1800);
+    label.textContent = 'Saved';
+    resetSaveBtn(btn, label, 1800);
   } catch (err) {
     document.body.classList.remove('capturing');
     console.error(err);
-    savePngLabel.textContent = 'Could not save';
-    resetSaveBtn(2200);
+    label.textContent = 'Could not save';
+    resetSaveBtn(btn, label, 2200);
   }
+}
+
+savePngBtn.addEventListener('click', () => {
+  if (!CURRENT_NAME) return;
+  saveAsPng(savePngBtn, savePngLabel, document.getElementById('dashboard'), CURRENT_NAME);
 });
 
 /* ==================== main render ==================== */
@@ -719,6 +724,13 @@ function setWindow(kind) {
   renderTopFive();
 }
 
+const tfSaveBtn = document.getElementById('tfSavePngBtn');
+tfSaveBtn.addEventListener('click', () => {
+  if (TF_YEAR === null) return;
+  saveAsPng(tfSaveBtn, document.getElementById('tfSavePngLabel'), topFiveView,
+    `top_five_${TF_YEAR}_${TF_WINDOW === 'wrapped' ? 'wrapped_window' : 'full_year'}`);
+});
+
 document.getElementById('tfPrev').addEventListener('click', () => stepYear(-1));
 document.getElementById('tfNext').addEventListener('click', () => stepYear(1));
 document.getElementById('tfYears').addEventListener('click', (e) => {
@@ -766,8 +778,9 @@ function renderTopFive() {
       (partial ? ' title="Partial year"' : '') + `>${y}` +
       (partial ? '<span class="partial" aria-label=", partial year">*</span>' : '') + `</button>`;
   }).join('');
+  // Center the active pill in the strip (scrolls only the strip, never the page).
   const active = pills.querySelector('[aria-pressed="true"]');
-  if (active) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  if (active) pills.scrollLeft = active.offsetLeft - pills.offsetLeft - (pills.clientWidth - active.offsetWidth) / 2;
   const idx = TF_DATA.year_list.indexOf(year);
   document.getElementById('tfPrev').disabled = idx >= TF_DATA.year_list.length - 1;
   document.getElementById('tfNext').disabled = idx <= 0;
