@@ -47,6 +47,11 @@ function releasePaletteFor(accentIdx, n) {
 
 let ALL_DATA = null;
 let CURRENT_NAME = null;
+let CURRENT_VIEW = 'artist';  // 'artist' | 'topfive'
+let TF_DATA = null;           // TopFive.buildTopFive() result
+let TF_YEAR = null;
+let TF_WINDOW = 'full';       // 'full' | 'wrapped'
+let TF_METRIC = 'minutes';    // top-five ranking: 'minutes' | 'plays'
 
 const tip = document.getElementById('tip');
 function showTip(x, y, htmlStr) {
@@ -116,9 +121,14 @@ async function handleFiles(fileList) {
     if (!data.index.length) {
       throw new Error('No artist had 3 or more plays in that file -- nothing to show.');
     }
+    setStatus('Building your Top Five by year…');
+    await new Promise((r) => setTimeout(r, 30));
+    TF_DATA = TopFive.buildTopFive(records);
+    TF_YEAR = defaultTopFiveYear(TF_DATA);
     ALL_DATA = data;
     progressTrack.hidden = true;
     uploadSection.hidden = true;
+    viewTabs.hidden = !TF_DATA.year_list.length;
     picker.hidden = false;
     pickerStatusEl.hidden = false;
     pickerStatusEl.textContent = `${ALL_DATA.index.length.toLocaleString()} artists found (3+ plays) · ${records.length.toLocaleString()} total plays`;
@@ -284,7 +294,7 @@ function applyArtistColors(name, data) {
 
 if (window.matchMedia) {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    if (CURRENT_NAME && ALL_DATA) {
+    if (CURRENT_NAME && ALL_DATA && CURRENT_VIEW === 'artist') {
       applyArtistColors(CURRENT_NAME, ALL_DATA.artists[CURRENT_NAME]);
     }
   });
@@ -631,4 +641,200 @@ function renderAlbums(data) {
     tr.children[2].textContent = rest.minutes.toFixed(1);
     body.appendChild(tr);
   }
+}
+
+/* ==================== view tabs ==================== */
+const viewTabs = document.getElementById('viewTabs');
+const artistView = document.getElementById('artistView');
+const topFiveView = document.getElementById('topFive');
+
+function showView(view) {
+  CURRENT_VIEW = view;
+  viewTabs.querySelectorAll('.view-tab').forEach((b) => {
+    const on = b.dataset.view === view;
+    b.setAttribute('aria-selected', String(on));
+    b.tabIndex = on ? 0 : -1;
+  });
+  artistView.hidden = view !== 'artist';
+  topFiveView.hidden = view !== 'topfive';
+  hideTip();
+  if (view === 'topfive') {
+    resetAccent();
+    renderTopFive();
+  } else if (CURRENT_NAME) {
+    applyArtistColors(CURRENT_NAME, ALL_DATA.artists[CURRENT_NAME]);
+  }
+}
+
+// The Top Five view isn't about one artist, so it uses the default palette.
+function resetAccent() {
+  const root = document.documentElement.style;
+  ['--accent', '--accent-soft', '--on-accent'].forEach((p) => root.removeProperty(p));
+}
+
+viewTabs.addEventListener('click', (e) => {
+  const btn = e.target.closest('.view-tab');
+  if (btn) showView(btn.dataset.view);
+});
+viewTabs.addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  e.preventDefault();
+  const next = CURRENT_VIEW === 'artist' ? 'topfive' : 'artist';
+  showView(next);
+  viewTabs.querySelector(`[data-view="${next}"]`).focus();
+});
+
+/* ==================== top five ==================== */
+const TF_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const TF_WINDOW_LABEL = { full: 'Full Year', wrapped: 'Wrapped window' };
+
+function tfDate(s, withYear = true) {
+  const [y, m, d] = s.split('-').map(Number);
+  return TF_MONTHS[m - 1] + ' ' + d + (withYear ? ', ' + y : '');
+}
+function tfRange([a, b]) {
+  return a.slice(0, 4) === b.slice(0, 4) ? tfDate(a, false) + ' – ' + tfDate(b) : tfDate(a) + ' – ' + tfDate(b);
+}
+const tfPct = (x) => Math.round(x * 100) + '%';
+const tfNum = (n) => Number(n).toLocaleString();
+
+// Most recent year that's finished and has data; otherwise the latest year.
+function defaultTopFiveYear(tf) {
+  const done = tf.year_list.find((y) => !tf.years[y].full.flags.in_progress && !tf.years[y].full.flags.empty);
+  return done !== undefined ? done : tf.year_list[0];
+}
+
+function stepYear(delta) {
+  // year_list is newest first, so "previous year" is further along the list
+  const list = TF_DATA.year_list;
+  const i = list.indexOf(TF_YEAR) - delta;
+  if (i < 0 || i >= list.length) return;
+  TF_YEAR = list[i];
+  renderTopFive();
+}
+
+function setWindow(kind) {
+  if (kind === TF_WINDOW) return;
+  TF_WINDOW = kind;
+  renderTopFive();
+}
+
+document.getElementById('tfPrev').addEventListener('click', () => stepYear(-1));
+document.getElementById('tfNext').addEventListener('click', () => stepYear(1));
+document.getElementById('tfYears').addEventListener('click', (e) => {
+  const btn = e.target.closest('.year-pill');
+  if (!btn) return;
+  TF_YEAR = +btn.dataset.year;
+  renderTopFive();
+});
+const tfWindowGroup = document.getElementById('tfWindow');
+tfWindowGroup.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-window]');
+  if (btn) setWindow(btn.dataset.window);
+});
+tfWindowGroup.addEventListener('keydown', (e) => {
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+  e.preventDefault();
+  setWindow(TF_WINDOW === 'full' ? 'wrapped' : 'full');
+  tfWindowGroup.querySelector(`[data-window="${TF_WINDOW}"]`).focus();
+});
+// Left/right arrows step through years anywhere on the Top Five view
+// (except while typing, or inside a control that uses arrows itself).
+document.addEventListener('keydown', (e) => {
+  if (CURRENT_VIEW !== 'topfive' || !TF_DATA) return;
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  if (e.target.closest('input, textarea, select, [role="tablist"], [role="radiogroup"]')) return;
+  e.preventDefault();
+  stepYear(e.key === 'ArrowLeft' ? -1 : 1);
+});
+
+function renderTopFive() {
+  if (!TF_DATA || TF_YEAR === null) return;
+  const year = TF_YEAR;
+  const entry = TF_DATA.years[year];
+  const w = entry[TF_WINDOW];
+  topFiveView.dataset.window = TF_WINDOW;
+
+  document.getElementById('tfTitle').textContent = 'Your ' + year + ', top five';
+
+  // year pills, oldest -> newest left to right; * marks a partial year
+  const pills = document.getElementById('tfYears');
+  pills.innerHTML = TF_DATA.year_list.slice().reverse().map((y) => {
+    const f = TF_DATA.years[y].full.flags;
+    const partial = f.in_progress || f.ends_early || f.starts_late;
+    return `<button class="year-pill" data-year="${y}" aria-pressed="${y === year}"` +
+      (partial ? ' title="Partial year"' : '') + `>${y}` +
+      (partial ? '<span class="partial" aria-label=", partial year">*</span>' : '') + `</button>`;
+  }).join('');
+  const active = pills.querySelector('[aria-pressed="true"]');
+  if (active) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  const idx = TF_DATA.year_list.indexOf(year);
+  document.getElementById('tfPrev').disabled = idx >= TF_DATA.year_list.length - 1;
+  document.getElementById('tfNext').disabled = idx <= 0;
+
+  tfWindowGroup.querySelectorAll('button').forEach((b) => {
+    const on = b.dataset.window === TF_WINDOW;
+    b.setAttribute('aria-checked', String(on));
+    b.tabIndex = on ? 0 : -1;
+  });
+
+  // active window + its date range (and the slice the export actually covers)
+  let rangeHtml = `<b>${TF_WINDOW_LABEL[TF_WINDOW]}</b> · ${tfRange(w.range)}`;
+  if (w.covered && (w.covered[0] !== w.range[0] || w.covered[1] !== w.range[1])) {
+    rangeHtml += ` · data ${tfRange(w.covered)}`;
+  }
+  document.getElementById('tfRange').innerHTML = rangeHtml;
+  const cfg = TF_DATA.config;
+  document.getElementById('tfRangeNote').textContent = TF_WINDOW === 'wrapped'
+    ? "Approximates the period Spotify's Wrapped covers" +
+      (cfg.wrapped_excludes_incognito ? ', minus Private Session plays' : '') + ' · ' + cfg.time_zone + ' time'
+    : 'Plays of ' + cfg.min_seconds + 's+ · ' + cfg.time_zone + ' time';
+
+  renderTfBanner(w, year);
+
+  const body = document.getElementById('tfBody');
+  if (w.flags.empty) {
+    body.innerHTML = `<section class="card tf-empty"><h3>Nothing to show here</h3>` +
+      `<p>No plays of ${cfg.min_seconds}s or more fall inside the ${TF_WINDOW_LABEL[TF_WINDOW]} for ${year}.</p></section>`;
+    return;
+  }
+  body.innerHTML = tfKpis(w);
+}
+
+function renderTfBanner(w, year) {
+  const f = w.flags;
+  const notes = [];
+  if (!f.empty && f.in_progress) {
+    notes.push(`<strong>${year} isn't over yet.</strong> This covers ${tfRange(w.covered)}; the window runs through ${tfDate(w.range[1])}.`);
+  } else if (!f.empty && f.ends_early) {
+    notes.push(`<strong>Your export ends ${tfDate(w.covered[1])}</strong>, before this window does, so later listening is missing.`);
+  }
+  if (f.starts_late) {
+    notes.push(`<strong>Your history starts ${tfDate(TF_DATA.config.data_range[0])}</strong>, partway through ${year}.`);
+  }
+  if (!f.empty && f.sparse) {
+    notes.push(`<strong>Light year:</strong> only ${tfNum(w.totals.plays)} plays across ${tfNum(w.totals.active_days)} ` +
+      `day${w.totals.active_days === 1 ? '' : 's'}, so these rankings rest on very little listening.`);
+  }
+  const banner = document.getElementById('tfBanner');
+  banner.innerHTML = notes.map((n) => `<p>${n}</p>`).join('');
+  banner.hidden = !notes.length;
+}
+
+function tfTile(label, value, sub, title) {
+  return `<div class="kpi"><div class="label">${label}</div>` +
+    `<div class="value truncate"${title ? ` title="${esc(title)}"` : ''}>${value}</div><div class="sub">${sub}</div></div>`;
+}
+
+function tfKpis(w) {
+  const t = w.totals;
+  const hours = Math.round(t.minutes / 60).toLocaleString();
+  const newLine = w.discovery.reliable ? `${tfNum(w.discovery.new_artists)} new to you` : 'new vs. returning n/a';
+  return `<section class="kpis">` +
+    tfTile('Minutes listened', tfNum(t.minutes), `~${hours} hours · ${tfNum(Math.round(t.avg_minutes_per_day))}/day`) +
+    tfTile('Plays', tfNum(t.plays), `${tfNum(t.active_days)} of ${tfNum(t.covered_days)} days active`) +
+    tfTile('Artists', tfNum(t.unique_artists), newLine) +
+    tfTile('Tracks', tfNum(t.unique_tracks), `from ${tfNum(t.unique_albums)} albums`) +
+    tfTile('On shuffle', tfPct(t.shuffle_share), 'of minutes listened') +
+    `</section>`;
 }

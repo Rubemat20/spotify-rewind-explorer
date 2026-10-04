@@ -59,6 +59,12 @@
     </details>
   </section>
 
+  <div class="view-tabs" id="viewTabs" role="tablist" aria-label="View" hidden>
+    <button class="view-tab" role="tab" id="tabArtist" data-view="artist" aria-controls="artistView" aria-selected="true">Artist deep-dive</button>
+    <button class="view-tab" role="tab" id="tabTopFive" data-view="topfive" aria-controls="topFive" aria-selected="false" tabindex="-1">Top Five by year</button>
+  </div>
+
+  <div class="view-stack" id="artistView" role="tabpanel" aria-labelledby="tabArtist">
   <div class="picker" id="picker" hidden>
     <input class="picker-input" id="pickerInput" type="text" placeholder="Search an artist&hellip;" autocomplete="off" spellcheck="false"
       role="combobox" aria-expanded="false" aria-controls="pickerList" aria-autocomplete="list" aria-label="Search an artist">
@@ -194,6 +200,36 @@
     </footer>
 
   </div>
+  </div><!-- #artistView -->
+
+  <div class="view-stack" id="topFive" role="tabpanel" aria-labelledby="tabTopFive" hidden>
+
+    <div class="dashboard-head">
+      <h2 class="artist-title" id="tfTitle"></h2>
+    </div>
+
+    <div class="tf-controls">
+      <div class="year-nav">
+        <button class="year-step" id="tfPrev" aria-label="Previous year">&#8249;</button>
+        <div class="year-pills" id="tfYears" role="group" aria-label="Year"></div>
+        <button class="year-step" id="tfNext" aria-label="Next year">&#8250;</button>
+      </div>
+      <div class="seg" id="tfWindow" role="radiogroup" aria-label="Data window">
+        <button role="radio" data-window="full" aria-checked="true">Full Year</button>
+        <button role="radio" data-window="wrapped" aria-checked="false" tabindex="-1">Wrapped window</button>
+      </div>
+    </div>
+
+    <div class="tf-range-row">
+      <div class="range-chip tf-range"><span class="dot"></span><span id="tfRange"></span></div>
+      <span class="note" id="tfRangeNote"></span>
+    </div>
+
+    <div class="tf-banner" id="tfBanner" role="status" hidden></div>
+
+    <div class="view-stack" id="tfBody"></div>
+
+  </div><!-- #topFive -->
 
   <footer class="site-footer">
     <span>
@@ -213,6 +249,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="js/aggregate.js"></script>
+<script src="js/topfive.js"></script>
 <script src="js/upload.js"></script>
 <script src="js/app.js"></script>
 </body>
