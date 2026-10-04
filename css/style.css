@@ -478,6 +478,20 @@ td.num { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-
 .mini-col.is-peak .mini-bar { background: var(--peak); }
 .tf-new { margin-top: 18px; max-width: 420px; }
 
+/* ---------- top five: comparisons ---------- */
+.tf-delta { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.tf-delta.up { color: var(--good); }
+.tf-delta.down { color: var(--accent-2); }
+.tf-card-note { margin: -8px 0 14px; }
+.tf-yoy { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px 32px; align-items: start; }
+@media (max-width: 680px) { .tf-yoy { grid-template-columns: 1fr; } }
+.tf-yoy td:first-child { font-weight: 600; }
+.tf-diff-facts { font-size: 13.5px; color: var(--ink-2); line-height: 1.55; margin: -6px 0 18px; }
+.tf-diff-facts b { color: var(--ink); font-weight: 600; }
+.tf-diff-row { grid-template-columns: minmax(0, 1fr) auto; }
+.tf-diff-row .tf-val { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.tf-ranks { color: var(--ink); }
+
 .tf-empty { text-align: center; padding: 40px 24px; color: var(--ink-2); font-size: 14px; }
 .tf-empty h3 { font-family: "Fraunces", Georgia, serif; font-size: 20px; color: var(--ink); margin: 0 0 6px; }
 

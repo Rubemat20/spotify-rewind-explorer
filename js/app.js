@@ -800,7 +800,89 @@ function renderTopFive() {
   }
   body.innerHTML = tfKpis(w) + tfTopCard(w) +
     `<div class="row-2">${tfPersonalityCard(w)}${tfHighlightsCard(w)}</div>` +
-    tfClockCard(w) + tfDiscoveryCard(w);
+    tfClockCard(w) + tfDiscoveryCard(w) + tfYoyCard(w, year) + tfDiffCard(entry, year);
+}
+
+function tfDelta(cur, prev) {
+  if (!prev) return '<span class="tf-delta">new</span>';
+  const pct = Math.round(((cur - prev) / prev) * 100);
+  if (pct === 0) return '<span class="tf-delta">±0%</span>';
+  return `<span class="tf-delta ${pct > 0 ? 'up' : 'down'}">${pct > 0 ? '▲' : '▼'} ${Math.abs(pct)}%</span>`;
+}
+
+function tfYoyCard(w, year) {
+  const y = w.yoy;
+  if (!y) {
+    return `<section class="card"><div class="card-head"><h2>Year over year</h2></div>
+      <p class="note">There's no ${year - 1} listening in your export to compare ${year} with.</p></section>`;
+  }
+  const notes = [];
+  if (y.basis === 'same_span') notes.push(`Compares ${tfRange(w.covered)} with ${tfRange(y.span)}, since ${year}'s data stops there.`);
+  if (y.prev_sparse) notes.push(`${y.prev_year} is a light year in your export, so these swings look bigger than they are.`);
+  const row = (label, k) => `<tr><td>${label}</td><td class="num">${tfNum(y.previous[k])}</td><td class="num">${tfNum(y.current[k])}</td><td class="num">${tfDelta(y.current[k], y.previous[k])}</td></tr>`;
+  const moves = y.top_artists.map((a) => {
+    let move;
+    if (a.prev_rank === null) move = `<span class="tf-delta up">new · not played in ${y.prev_year}</span>`;
+    else if (a.prev_rank === a.rank) move = `<span class="tf-delta">= same spot</span>`;
+    else if (a.prev_rank > a.rank) move = `<span class="tf-delta up">▲ from #${tfNum(a.prev_rank)}</span>`;
+    else move = `<span class="tf-delta down">▼ from #${a.prev_rank}</span>`;
+    return `<div class="tf-row"><div class="tf-rank">${a.rank}</div><div class="tf-main">${tfArtistName(a.name, 'tf-name')}</div><div class="tf-val">${move}</div></div>`;
+  }).join('');
+  return `<section class="card">
+    <div class="card-head"><h2>${year} vs. ${y.prev_year}</h2><span class="note">${TF_WINDOW_LABEL[TF_WINDOW]}, ${y.basis === 'same_span' ? 'same dates' : 'same window'} both years</span></div>
+    ${notes.length ? `<p class="note tf-card-note">${notes.join(' ')}</p>` : ''}
+    <div class="tf-yoy">
+      <div class="table-scroll"><table>
+        <thead><tr><th></th><th class="num">${y.prev_year}</th><th class="num">${year}</th><th class="num">Change</th></tr></thead>
+        <tbody>${row('Minutes', 'minutes')}${row('Plays', 'plays')}${row('Artists', 'unique_artists')}${row('New artists', 'new_artists')}</tbody>
+      </table></div>
+      <div class="tf-list"><h3>Top artists, then vs. now</h3>${moves}</div>
+    </div>
+  </section>`;
+}
+
+const TF_STATUS = {
+  up: ['up', '▲ climbed'], down: ['down', '▼ slipped'], entered: ['up', 'joins in Full Year'],
+  dropped: ['down', 'drops out'], same: ['', '= unchanged'],
+};
+
+function tfDiffCard(entry, year) {
+  const diff = entry.diff;
+  if (!diff) return '';
+  const cutoff = tfDate(entry.wrapped.range[1], false);
+  const m = TF_METRIC;
+  const facts = [];
+  const after = diff.after_cutoff;
+  if (entry.full.flags.in_progress && entry.wrapped.flags.in_progress) {
+    facts.push(`The ${cutoff} cutoff hasn't passed yet, so both windows hold the same days so far.`);
+  } else if (after.plays) {
+    facts.push(`<b>${tfNum(after.minutes)} min</b> (${tfNum(after.plays)} plays) came after ${cutoff}, the stretch Wrapped never counts.`);
+  } else {
+    facts.push(`Nothing was played after ${cutoff}.`);
+  }
+  if (diff.incognito_excluded && diff.incognito_excluded.plays) {
+    facts.push(`<b>${tfNum(diff.incognito_excluded.minutes)} min</b> of Private Session listening is left out of the Wrapped window.`);
+  }
+  const rank = (r) => (r === null ? '—' : '#' + tfNum(r));
+  const lists = [['Artists', 'artists'], ['Songs', 'tracks'], ['Albums', 'albums']].map(([title, cat]) => {
+    const rows = diff.categories[cat][m];
+    const changed = rows.filter((r) => r.status !== 'same');
+    const body = changed.length
+      ? changed.map((r) => {
+        const [cls, label] = TF_STATUS[r.status];
+        const name = cat === 'artists' ? tfArtistName(r.name, 'tf-name') : `<span class="tf-name">${esc(r.name)}</span>`;
+        const sub = cat === 'artists' ? '' : `<div class="tf-sub">${esc(r.artist)}</div>`;
+        return `<div class="tf-row tf-diff-row"><div class="tf-main"><div class="tf-name-line">${name}</div>${sub}</div>` +
+          `<div class="tf-val"><span class="tf-ranks">${rank(r.wrapped_rank)} → ${rank(r.full_rank)}</span><span class="tf-delta ${cls}">${label}</span></div></div>`;
+      }).join('')
+      : '<div class="note">Same top five either way.</div>';
+    return `<div class="tf-list"><h3>${title}</h3>${body}</div>`;
+  }).join('');
+  return `<section class="card">
+    <div class="card-head"><h2>Wrapped window vs. Full Year</h2><span class="note">rank in Wrapped window → rank in Full Year, ${m === 'plays' ? 'by plays' : 'by minutes'}</span></div>
+    <p class="tf-diff-facts">${facts.join(' ')}</p>
+    ${diff.changed ? `<div class="tf-top-grid">${lists}</div>` : `<p class="note">Your top fives come out identical whichever window you use.</p>`}
+  </section>`;
 }
 
 // Hover tooltips for anything in the Top Five body carrying data-tip (HTML, pre-escaped).
