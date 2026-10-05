@@ -35,6 +35,11 @@
         Choose files
         <input type="file" id="fileInput" multiple accept=".zip,.json" hidden>
       </label>
+      <label class="remember">
+        <input type="checkbox" id="rememberData" checked>
+        <span>Remember on this device</span>
+      </label>
+      <div class="remember-note">Keeps your data in this browser only, so a refresh doesn't mean re-uploading. Untick on a shared computer.</div>
       <div class="dropzone-status" id="uploadStatus" role="status" aria-live="polite"></div>
       <div class="dropzone-bar-track" id="progressTrack" hidden><div class="dropzone-bar" id="progressBar"></div></div>
     </div>
@@ -47,12 +52,12 @@
         <li>Spotify emails you a link within a few days. Download the .zip.</li>
         <li>Drop that .zip right here, unopened -- no need to extract it first.</li>
       </ol>
-      <p class="privacy-note">Everything above happens locally: files are read in memory by your browser and thrown away on refresh. This page has no server, no database, and no upload endpoint -- there is nothing for your data to be sent to.</p>
+      <p class="privacy-note">Everything above happens locally: files are read in memory by your browser. With "Remember on this device" ticked, your plays are also kept in this browser's own storage until you click "Forget my data" at the bottom; untick it and they're gone on refresh. This page has no server, no database, and no upload endpoint -- there is nothing for your data to be sent to.</p>
     </details>
 
     <details class="how-to">
       <summary>Privacy &amp; terms</summary>
-      <p><strong>Privacy.</strong> This page has no backend. Your streaming history is read by your browser's File API (and, for a .zip, the JSZip library) and processed entirely in memory on your device. Nothing is uploaded, logged, stored, or sent to any server -- there is no database and no upload endpoint for it to go to. Refreshing or closing the tab discards it. The only network requests this page makes are to Google Fonts and two CDN-hosted scripts (JSZip, html2canvas) -- never your data. No analytics, no cookies, no tracking.</p>
+      <p><strong>Privacy.</strong> This page has no backend. Your streaming history is read by your browser's File API (and, for a .zip, the JSZip library) and processed entirely in memory on your device. Nothing is uploaded, logged, or sent to any server -- there is no database and no upload endpoint for it to go to. If "Remember on this device" is ticked (the default), your plays are saved in this browser's own storage (IndexedDB) so a refresh can pick up where you left off; they stay on this device, are never sent anywhere, and "Forget my data" at the bottom of the page deletes them. Untick it and refreshing or closing the tab discards everything. The only network requests this page makes are to Google Fonts and two CDN-hosted scripts (JSZip, html2canvas) -- never your data. No analytics, no cookies, no tracking.</p>
       <p><strong>Not affiliated with Spotify.</strong> This is an independent, unofficial, fan-made tool. It is not affiliated with, endorsed by, or sponsored by Spotify AB. "Spotify" and its logos are trademarks of Spotify AB, referenced here only to describe compatibility with the data export Spotify's own "Download your data" feature produces.</p>
       <p><strong>Your data, your responsibility.</strong> You're uploading a file you requested from your own Spotify account. How you obtain and use that export remains governed by Spotify's own Terms of Service and Privacy Policy -- this tool doesn't call Spotify's API and doesn't change your relationship with Spotify in any way.</p>
       <p><strong>Accuracy.</strong> Every number here (play counts, minutes, "top track," etc.) is this tool's own best-effort analysis of your export -- including judgment calls like folding a single's plays into its parent album, or grouping "Album (Deluxe)" with "Album." It won't always match Spotify's own official Wrapped numbers, which use different, undocumented methodology.</p>
@@ -243,7 +248,10 @@
       &middot;
       <a href="TERMS.md" target="_blank" rel="noopener">Terms</a>
     </span>
-    <span>Nothing you upload ever leaves this tab.</span>
+    <span class="footer-right">
+      Nothing you upload ever leaves your device.
+      <button class="forget-btn" id="forgetBtn" title="Deletes anything saved in this browser and returns to the upload screen" hidden>Forget my data</button>
+    </span>
   </footer>
 
 </div>
@@ -255,6 +263,7 @@
 <script src="js/aggregate.js"></script>
 <script src="js/topfive.js"></script>
 <script src="js/upload.js"></script>
+<script src="js/saved.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

@@ -16,8 +16,11 @@ changed in the rankings between the two.
 
 **Everything runs in your browser.** There is no backend, no database, no
 upload endpoint. The moment you drop your Spotify export in, the page reads
-it, crunches it, and throws it away on refresh. Nobody but you ever sees it
--- including whoever's running this deployment.
+it and crunches it right there. Nobody but you ever sees it -- including
+whoever's running this deployment. With **Remember on this device** ticked
+(the default), your plays are also kept in your own browser's storage so a
+refresh doesn't mean re-uploading; **Forget my data** at the bottom of the
+page deletes them. Untick it and everything is thrown away on refresh.
 
 ## Sample output
 
@@ -93,6 +96,11 @@ it's plain HTML/CSS/JS. Vercel serves it as-is.
     compared against the same dates of the year before.
   - Genres and podcasts aren't covered: the export has no genre data, and
     podcast plays are dropped at upload.
+- `js/saved.js` handles **Remember on this device**: it keeps the slimmed
+  play records in the browser's IndexedDB (never on a server) and restores
+  them on the next visit, re-running the analysis. Saves carry a version
+  number; bump `SAVE_VERSION` if the record shape in `upload.js` ever changes
+  and older saves are dropped instead of misread.
 - `js/app.js` renders it all as hand-built SVG/DOM charts (no charting
   library) and wires up the artist search and the view tabs.
 

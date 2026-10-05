@@ -106,38 +106,80 @@ fileInput.addEventListener('change', () => {
   if (fileInput.files && fileInput.files.length) handleFiles(fileInput.files);
 });
 
+const rememberBox = document.getElementById('rememberData');
+const forgetBtn = document.getElementById('forgetBtn');
+
 async function handleFiles(fileList) {
   progressTrack.hidden = false;
   setStatus('Reading files…');
+  let saved = false;
   try {
     const { records, fileCount } = await collectRecordsFromFiles(fileList, (msg) => setStatus(msg));
-    setStatus(`Crunching ${records.length.toLocaleString()} plays from ${fileCount} file${fileCount === 1 ? '' : 's'}…`);
-    // Yield one frame so the status text actually paints before the
-    // (synchronous, occasionally chunky) aggregation pass runs.
-    await new Promise((r) => setTimeout(r, 30));
-    const data = aggregateAllArtists(records, (phase, done, total) => {
-      setStatus(`Aggregating artists… ${done.toLocaleString()}/${total.toLocaleString()}`);
-    });
-    if (!data.index.length) {
-      throw new Error('No artist had 3 or more plays in that file -- nothing to show.');
+    // Save before aggregating: aggregateAllArtists() adds fields to each record.
+    if (rememberBox.checked) {
+      setStatus('Saving to this browser…');
+      saved = await SavedData.save(records, fileCount);
+    } else {
+      await SavedData.clear(); // unticked: don't leave an older save behind
     }
-    setStatus('Building your Top Five by year…');
-    await new Promise((r) => setTimeout(r, 30));
-    TF_DATA = TopFive.buildTopFive(records);
-    TF_YEAR = defaultTopFiveYear(TF_DATA);
-    ALL_DATA = data;
-    progressTrack.hidden = true;
-    uploadSection.hidden = true;
-    viewTabs.hidden = !TF_DATA.year_list.length;
-    picker.hidden = false;
-    pickerStatusEl.hidden = false;
-    pickerStatusEl.textContent = `${ALL_DATA.index.length.toLocaleString()} artists found (3+ plays) · ${records.length.toLocaleString()} total plays`;
-    selectArtist(ALL_DATA.index[0].name);
+    const note = !rememberBox.checked ? '' : saved ? ' · saved on this device' : " · couldn't save on this device";
+    await showData(records, fileCount, note);
   } catch (err) {
+    if (saved) SavedData.clear(); // never keep a save that can't be shown
     progressTrack.hidden = true;
     setStatus(err.message || 'Something went wrong reading that file.', true);
     console.error(err);
   }
+}
+
+// On load: if this browser has a save from an earlier visit, show it again.
+async function restoreSavedData() {
+  const saved = await SavedData.load();
+  if (!saved || ALL_DATA) return;
+  progressTrack.hidden = false;
+  setStatus('Restoring your saved data…');
+  try {
+    const when = new Date(saved.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    await showData(saved.records, saved.fileCount, ' · restored from this device, saved ' + when);
+  } catch (err) {
+    SavedData.clear();
+    progressTrack.hidden = true;
+    setStatus("Your saved data couldn't be read, so it was removed. Drop your Spotify export again.", true);
+    console.error(err);
+  }
+}
+
+forgetBtn.addEventListener('click', async () => {
+  forgetBtn.disabled = true;
+  await SavedData.clear();
+  location.reload();
+});
+
+// Shared by a fresh upload and a restore: aggregate, then show the dashboard.
+async function showData(records, fileCount, sourceNote) {
+  setStatus(`Crunching ${records.length.toLocaleString()} plays from ${fileCount} file${fileCount === 1 ? '' : 's'}…`);
+  // Yield one frame so the status text actually paints before the
+  // (synchronous, occasionally chunky) aggregation pass runs.
+  await new Promise((r) => setTimeout(r, 30));
+  const data = aggregateAllArtists(records, (phase, done, total) => {
+    setStatus(`Aggregating artists… ${done.toLocaleString()}/${total.toLocaleString()}`);
+  });
+  if (!data.index.length) {
+    throw new Error('No artist had 3 or more plays in that file -- nothing to show.');
+  }
+  setStatus('Building your Top Five by year…');
+  await new Promise((r) => setTimeout(r, 30));
+  TF_DATA = TopFive.buildTopFive(records);
+  TF_YEAR = defaultTopFiveYear(TF_DATA);
+  ALL_DATA = data;
+  progressTrack.hidden = true;
+  uploadSection.hidden = true;
+  viewTabs.hidden = !TF_DATA.year_list.length;
+  picker.hidden = false;
+  pickerStatusEl.hidden = false;
+  pickerStatusEl.textContent = `${ALL_DATA.index.length.toLocaleString()} artists found (3+ plays) · ${records.length.toLocaleString()} total plays${sourceNote}`;
+  forgetBtn.hidden = false;
+  selectArtist(ALL_DATA.index[0].name);
 }
 
 /* ==================== picker ==================== */
@@ -1119,3 +1161,7 @@ function tfKpis(w) {
     tfTile('On shuffle', tfPct(t.shuffle_share), 'of minutes listened') +
     `</section>`;
 }
+
+/* ==================== start ==================== */
+// Last, so every element and handler above exists before a restore renders.
+restoreSavedData();
