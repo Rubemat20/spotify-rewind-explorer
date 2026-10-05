@@ -50,7 +50,16 @@ const TopFive = (() => {
   /* ---------------- dates ---------------- */
   const pad2 = (n) => String(n).padStart(2, '0');
   const dateStr = (y, m, d) => `${y}-${pad2(m)}-${pad2(d)}`;
-  const dayNum = (s) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 86400000;
+  // Streaks call this for the same few thousand dates over and over, so memoize.
+  const dayNums = new Map();
+  function dayNum(s) {
+    let n = dayNums.get(s);
+    if (n === undefined) {
+      n = Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 86400000;
+      dayNums.set(s, n);
+    }
+    return n;
+  }
   const daysBetween = (a, b) => dayNum(b) - dayNum(a);
   const minStr = (a, b) => (a < b ? a : b);
   const maxStr = (a, b) => (a > b ? a : b);
@@ -127,12 +136,19 @@ const TopFive = (() => {
   }
 
   /* ---------------- ranking ---------------- */
-  // stats: Map<key, {name, artist?, plays, ms}>
+  // stats: Map<key, {name, artist?, plays, ms}>. The same maps get ranked
+  // several times (top lists, Wrapped diff, year over year) and never change
+  // after aggregation, so each sort is cached per map and metric.
+  const sortCache = new WeakMap();
   function ordered(stats, by) {
     const [pk, sk] = by === 'plays' ? ['plays', 'ms'] : ['ms', 'plays'];
-    const rows = [...stats.entries()].sort((a, b) =>
-      (b[1][pk] - a[1][pk]) || (b[1][sk] - a[1][sk]) || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-    return [rows, pk];
+    let cached = sortCache.get(stats);
+    if (!cached) { cached = {}; sortCache.set(stats, cached); }
+    if (!cached[by]) {
+      cached[by] = [...stats.entries()].sort((a, b) =>
+        (b[1][pk] - a[1][pk]) || (b[1][sk] - a[1][sk]) || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    }
+    return [cached[by], pk];
   }
 
   // Map<key, rank> over every key. Equal primary values share a rank (1, 2, 2, 4).
@@ -191,9 +207,13 @@ const TopFive = (() => {
     return best;
   }
 
-  function bump(map, key, init, ms) {
+  // Runs once per play per map, so it only allocates for a key it hasn't seen.
+  function bump(map, key, name, artist, ms) {
     let v = map.get(key);
-    if (!v) { v = { ...init, plays: 0, ms: 0 }; map.set(key, v); }
+    if (!v) {
+      v = artist === undefined ? { name, plays: 0, ms: 0 } : { name, artist, plays: 0, ms: 0 };
+      map.set(key, v);
+    }
     v.plays += 1;
     v.ms += ms;
   }
@@ -227,10 +247,10 @@ const TopFive = (() => {
       const tkey = p.artist + SEP + p.track;
       agg.plays += 1;
       agg.ms += ms;
-      bump(agg.artists, p.artist, { name: p.artist }, ms);
-      bump(agg.tracks, tkey, { name: p.track, artist: p.artist }, ms);
-      bump(agg.albums, p.artist + SEP + p.album, { name: p.album, artist: p.artist }, ms);
-      bump(agg.byDate, p.date, {}, ms);
+      bump(agg.artists, p.artist, p.artist, undefined, ms);
+      bump(agg.tracks, tkey, p.track, p.artist, ms);
+      bump(agg.albums, p.artist + SEP + p.album, p.album, p.artist, ms);
+      bump(agg.byDate, p.date, p.date, undefined, ms);
       if (!agg.trackByDate.has(p.date)) agg.trackByDate.set(p.date, new Map());
       const dayTracks = agg.trackByDate.get(p.date);
       dayTracks.set(tkey, (dayTracks.get(tkey) || 0) + 1);
